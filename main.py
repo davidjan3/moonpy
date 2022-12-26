@@ -7,14 +7,14 @@ import pandas as pd
 import util as ut
 
 
-class SmaCross(Strategy):
+class MACDAction(Strategy):
     # MACD
     n_macdFast = 10
     n_macdSlow = 30
     n_macdSignal = 15
     # ATR
     n_atrLen = 30
-    n_atrThres = 1.0
+    n_atrThres = 1.2
     # Trend Filter
     b_tfUse = False
     n_tfLong = 240
@@ -23,6 +23,9 @@ class SmaCross(Strategy):
     b_vfUse = False
     n_vfLong = 120
     n_vfShort = 15
+    # TP/SL
+    n_tpThres = 2.5
+    n_slThres = 1
 
     def init(self):
         open = pd.Series(self.data.Open)
@@ -62,21 +65,27 @@ class SmaCross(Strategy):
             close > self.tfLong and close < self.tfShort)
         # Volume Filter
         c_vf = (not self.b_vfUse) or self.vfShort > self.vfLong
+        # TP/SL
+        l_tp = close + self.atr * self.n_tpThres
+        s_tp = close - self.atr * self.n_tpThres
+        l_sl = close - self.atr * self.n_slThres
+        s_sl = close + self.atr * self.n_slThres
 
         if cl_macd and c_atr and cl_tf and c_vf:
-            self.buy()
+            self.buy(tp=l_tp, sl=l_sl)
         elif cs_macd and c_atr and cs_tf and c_vf:
-            self.sell()
+            self.sell(tp=s_tp, sl=s_sl)
 
 
 btc = pd.read_csv("./data/mBTC.csv")
 btc['Time'] = pd.to_datetime(btc['Time'], unit='s')
 btc = btc.set_index("Time")
-btc = btc.loc["2020-01-01": "2020-01-02"]
-
-bt = Backtest(btc, SmaCross,
-              cash=10000, commission=0.002,
-              exclusive_orders=True)
+btc = btc.loc["2022-11-01": "2022-11-30"]
+bt = Backtest(btc, MACDAction,
+              cash=10000,
+              # commission=0.002,
+              # exclusive_orders=True
+              )
 
 bt.run()
 bt.plot()

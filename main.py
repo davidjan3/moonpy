@@ -6,6 +6,8 @@ import pandas_ta as ta
 import pandas as pd
 import util as ut
 
+commission = 0  # Binance BTC: 0.005699 / 100
+
 
 class MACDAction(Strategy):
     # MACD
@@ -26,6 +28,8 @@ class MACDAction(Strategy):
     # TP/SL
     n_tpThres = 2.5
     n_slThres = 1
+    # Amount
+    n_amount = 0.99
 
     def init(self):
         open = pd.Series(self.data.Open)
@@ -66,15 +70,15 @@ class MACDAction(Strategy):
         # Volume Filter
         c_vf = (not self.b_vfUse) or self.vfShort > self.vfLong
         # TP/SL
-        l_tp = close + self.atr * self.n_tpThres
-        s_tp = close - self.atr * self.n_tpThres
-        l_sl = close - self.atr * self.n_slThres
-        s_sl = close + self.atr * self.n_slThres
+        l_tp = (close + self.atr * self.n_tpThres) * (1 + commission)
+        s_tp = (close - self.atr * self.n_tpThres) * (1 - commission)
+        l_sl = (close - self.atr * self.n_slThres) * (1 + commission)
+        s_sl = (close + self.atr * self.n_slThres) * (1 - commission)
 
         if cl_macd and c_atr and cl_tf and c_vf:
-            self.buy(tp=l_tp, sl=l_sl)
+            self.buy(size=self.n_amount, tp=l_tp, sl=l_sl)
         elif cs_macd and c_atr and cs_tf and c_vf:
-            self.sell(tp=s_tp, sl=s_sl)
+            self.sell(size=self.n_amount, tp=s_tp, sl=s_sl)
 
 
 btc = pd.read_csv("./data/mBTC.csv")
@@ -83,7 +87,7 @@ btc = btc.set_index("Time")
 btc = btc.loc["2022-11-01": "2022-11-30"]
 bt = Backtest(btc, MACDAction,
               cash=10000,
-              # commission=0.002,
+              commission=commission,
               # exclusive_orders=True
               )
 

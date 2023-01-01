@@ -5,6 +5,10 @@ from backtesting.test import SMA, GOOG
 import pandas_ta as ta
 import pandas as pd
 import util as ut
+import calendar as ca
+
+import warnings
+warnings.filterwarnings("ignore")
 
 commission = 0.005699 / 100  # Binance BTC: 0.005699 / 100
 
@@ -63,7 +67,7 @@ class MACDAction(Strategy):
         cl_macd = macd < 0 and ut.crossover(macd, signal)
         cs_macd = macd > 0 and ut.crossunder(macd, signal)
         # ATR
-        c_atr = self.atr > macd * self.n_atrThres
+        c_atr = self.atr > abs(macd) * self.n_atrThres
         # Trend Filter
         cl_tf = (not self.b_tfUse) or (
             close < self.tfLong and close > self.tfShort)
@@ -94,16 +98,29 @@ class MACDAction(Strategy):
 
 btc = pd.read_csv("./data/mBTC.csv")
 btc['Time'] = pd.to_datetime(btc['Time'], unit='s')
-btc = btc.set_index("Time")
-btc = btc.loc["2022-11-01": "2022-11-30"]
-bt = Backtest(btc, MACDAction,
-              cash=10000,
-              commission=commission,
-              # exclusive_orders=True
-              )
+btc = btc.set_index("Time").sort_index()
 
-bt.run()
-bt.plot()
+prevamount = 10000
+
+for year in range(2017, 2023):
+    for month in range(1, 13):
+        lastday = ca.monthrange(year, month)[1]
+        period = str(year)+"-"+str(month)
+        start = period+"-01"
+        end = period+f"-{lastday}"
+        btcPeriod = btc.loc[start:end]
+        bt = Backtest(btcPeriod, MACDAction,
+                      cash=prevamount,
+                      commission=commission,
+                      )
+        run = bt.run()
+        prevamount = run._equity_curve["Equity"][-1]
+        print(start + " - " + end+":")
+        # print(run)
+        print(prevamount)
+        print()
+        # bt.plot(filename=period, open_browser=False)
+
 
 # stats = bt.optimize(n_macdFast=range(5, 60, 5),
 #                     n_macdSlow=range(20, 360, 10),
@@ -111,7 +128,7 @@ bt.plot()
 #                     n_atrLen=range(5, 60, 5),
 #                     constraint=lambda p: p.n_macdFast < p.n_macdSlow and p.n_macdSignal < p.n_macdSlow,
 #                     maximize='Equity Final [$]',
-#                     return_heatmap=True)
+#                     method="grid")
 # print(stats)
 
 # bt.run()

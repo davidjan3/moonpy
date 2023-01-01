@@ -6,7 +6,7 @@ import pandas_ta as ta
 import pandas as pd
 import util as ut
 
-commission = 0  # Binance BTC: 0.005699 / 100
+commission = 0.005699 / 100  # Binance BTC: 0.005699 / 100
 
 
 class MACDAction(Strategy):
@@ -26,8 +26,8 @@ class MACDAction(Strategy):
     n_vfLong = 120
     n_vfShort = 15
     # TP/SL
-    n_tpThres = 2.5
-    n_slThres = 1
+    n_tpThres = 1.0
+    n_slThres = 0.4
     # Amount
     n_amount = 0.99
 
@@ -49,6 +49,8 @@ class MACDAction(Strategy):
         # Volume Filter
         self.vfLong = self.I(ta.sma, close, self.n_vfLong)
         self.vfShort = self.I(ta.ema, close, self.n_vfShort)
+        # Bollinger Bands
+        self.bb = self.I(ut.bbands, close, 30, 2, overlay=True)
 
     def next(self):
         close = self.data.Close[-1]
@@ -69,15 +71,24 @@ class MACDAction(Strategy):
             close > self.tfLong and close < self.tfShort)
         # Volume Filter
         c_vf = (not self.b_vfUse) or self.vfShort > self.vfLong
+        # Bollinger Bands
+        bbL = self.bb[0]
+        bbM = self.bb[1]
+        bbH = self.bb[2]
+        bbW = bbH - bbL
+        cl_bb = close > bbL and close < bbM
+        cs_bb = close < bbH and close > bbM
         # TP/SL
-        l_tp = (close + self.atr * self.n_tpThres) * (1 + commission)
-        s_tp = (close - self.atr * self.n_tpThres) * (1 - commission)
-        l_sl = (close - self.atr * self.n_slThres) * (1 + commission)
-        s_sl = (close + self.atr * self.n_slThres) * (1 - commission)
+        l_close = (close * (1 + commission))
+        s_close = (close * (1 - commission))
+        l_tp = (l_close + bbW * self.n_tpThres)
+        s_tp = (s_close - bbW * self.n_tpThres)
+        l_sl = (l_close - bbW * self.n_slThres)
+        s_sl = (s_close + bbW * self.n_slThres)
 
-        if cl_macd and c_atr and cl_tf and c_vf:
+        if cl_macd and c_atr and cl_tf and c_vf and cl_bb:
             self.buy(size=self.n_amount, tp=l_tp, sl=l_sl)
-        elif cs_macd and c_atr and cs_tf and c_vf:
+        elif cs_macd and c_atr and cs_tf and c_vf and cs_bb:
             self.sell(size=self.n_amount, tp=s_tp, sl=s_sl)
 
 

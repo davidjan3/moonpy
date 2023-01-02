@@ -20,7 +20,7 @@ class MACDAction(Strategy):
     n_macdSignal = 15
     # ATR
     n_atrLen = 30
-    n_atrThres = 1.2
+    n_atrThres = 1.5
     # Trend Filter
     b_tfUse = False
     n_tfLong = 240
@@ -30,8 +30,8 @@ class MACDAction(Strategy):
     n_vfLong = 120
     n_vfShort = 15
     # TP/SL
-    n_tpThres = 1.0
-    n_slThres = 0.4
+    n_tpThres = 1.2
+    n_slThres = 0.6
     # Amount
     n_amount = 0.99
 
@@ -57,8 +57,7 @@ class MACDAction(Strategy):
         self.bb = self.I(ut.bbands, close, 30, 2, overlay=True)
 
     def next(self):
-        close = self.data.Close[-1]
-
+        close = self.data.Close
         # MACD
         macd = self.macd[0]
         macdChange = macd[-1] - macd[-2]
@@ -114,12 +113,14 @@ for year in range(2017, 2023):
                       commission=commission,
                       )
         run = bt.run()
-        prevamount = run._equity_curve["Equity"][-1]
+        newamount = run._equity_curve["Equity"][-1]
         print(start + " - " + end+":")
         # print(run)
-        print(prevamount)
-        print()
-        # bt.plot(filename=period, open_browser=False)
+        print(f"${round(newamount, 2)} ({round((newamount/prevamount -1)*100, 2)}%)")
+        # print(run._trades)
+        # if (prevamount > newamount):
+        #     bt.plot(filename=period, open_browser=False)
+        prevamount = newamount
 
 
 # stats = bt.optimize(n_macdFast=range(5, 60, 5),

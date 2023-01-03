@@ -11,6 +11,8 @@ import warnings
 warnings.filterwarnings("ignore")
 
 commission = 0.005699 / 100  # Binance BTC: 0.005699 / 100
+prevamount = 10000
+plotLosses = False
 
 
 class MACDAction(Strategy):
@@ -21,6 +23,9 @@ class MACDAction(Strategy):
     # ATR
     n_atrLen = 30
     n_atrThres = 1.5
+    # Bollinger Bands
+    n_bbLen = 30
+    n_bbScale = 2
     # Trend Filter
     b_tfUse = False
     n_tfLong = 240
@@ -47,14 +52,15 @@ class MACDAction(Strategy):
                            self.n_macdSlow, self.n_macdSignal)
         # ATR
         self.atr = self.I(ta.atr, high, low, close, self.n_atrLen)
-        # Trend Filter
-        self.tfLong = self.I(ta.sma, close, self.n_tfLong)
-        self.tfShort = self.I(ta.ema, close, self.n_tfShort)
-        # Volume Filter
-        self.vfLong = self.I(ta.sma, close, self.n_vfLong)
-        self.vfShort = self.I(ta.ema, close, self.n_vfShort)
         # Bollinger Bands
-        self.bb = self.I(ut.bbands, close, 30, 2, overlay=True)
+        self.bb = self.I(ut.bbands, close, self.n_bbLen,
+                         self.n_bbScale, overlay=True)
+        # Trend Filter
+        self.tfLong = self.I(ta.sma, close, self.n_tfLong, plot=False)
+        self.tfShort = self.I(ta.ema, close, self.n_tfShort, plot=False)
+        # Volume Filter
+        self.vfLong = self.I(ta.sma, close, self.n_vfLong, plot=False)
+        self.vfShort = self.I(ta.ema, close, self.n_vfShort, plot=False)
 
     def next(self):
         close = self.data.Close
@@ -67,13 +73,6 @@ class MACDAction(Strategy):
         cs_macd = macd > 0 and ut.crossunder(macd, signal)
         # ATR
         c_atr = self.atr > abs(macd) * self.n_atrThres
-        # Trend Filter
-        cl_tf = (not self.b_tfUse) or (
-            close < self.tfLong and close > self.tfShort)
-        cs_tf = (not self.b_tfUse) or (
-            close > self.tfLong and close < self.tfShort)
-        # Volume Filter
-        c_vf = (not self.b_vfUse) or self.vfShort > self.vfLong
         # Bollinger Bands
         bbL = self.bb[0]
         bbM = self.bb[1]
@@ -81,6 +80,13 @@ class MACDAction(Strategy):
         bbW = bbH - bbL
         cl_bb = close > bbL and close < bbM
         cs_bb = close < bbH and close > bbM
+        # Trend Filter
+        cl_tf = (not self.b_tfUse) or (
+            close < self.tfLong and close > self.tfShort)
+        cs_tf = (not self.b_tfUse) or (
+            close > self.tfLong and close < self.tfShort)
+        # Volume Filter
+        c_vf = (not self.b_vfUse) or self.vfShort > self.vfLong
         # TP/SL
         l_close = (close * (1 + commission))
         s_close = (close * (1 - commission))
@@ -99,7 +105,9 @@ btc = pd.read_csv("./data/mBTC.csv")
 btc['Time'] = pd.to_datetime(btc['Time'], unit='s')
 btc = btc.set_index("Time").sort_index()
 
-prevamount = 10000
+retSum = 0
+posSum = 0
+negSum = 0
 
 for year in range(2017, 2023):
     for month in range(1, 13):
@@ -114,15 +122,22 @@ for year in range(2017, 2023):
                       )
         run = bt.run()
         newamount = run._equity_curve["Equity"][-1]
-        print(start + " - " + end+":")
         # print(run)
-        print(f"${round(newamount, 2)} ({round((newamount/prevamount -1)*100, 2)}%)")
+        ret = 100*(newamount/prevamount - 1)
+        retSum += ret
+        if ret > 0:
+            posSum += 1
+        else:
+            negSum += 1
+
+        print(
+            f"{end}:   \t${round(newamount, 2)} ({round(ret, 2)}%)   \t{run._trades.size} Trades")
         # print(run._trades)
-        # if (prevamount > newamount):
-        #     bt.plot(filename=period, open_browser=False)
+        if (prevamount > newamount and plotLosses):
+            bt.plot(filename="plots/" + period, open_browser=False)
         prevamount = newamount
 
-
+print(f"P Total: {posSum + negSum}   P Pos: {posSum} ({round(100*posSum/(posSum+negSum), 2)}%)   P Neg: {negSum} ({round(100*negSum/(posSum+negSum),2)}%)   Avg: {round(retSum/(posSum+negSum), 2)}%")
 # stats = bt.optimize(n_macdFast=range(5, 60, 5),
 #                     n_macdSlow=range(20, 360, 10),
 #                     n_macdSignal=range(5, 60, 5),

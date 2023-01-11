@@ -12,7 +12,7 @@ warnings.filterwarnings("ignore")
 
 commission = 0.005699 / 100  # Binance BTC: 0.005699 / 100
 prevamount = 10000
-plotLosses = False
+plotNum = 0
 
 
 class MACDAction(Strategy):
@@ -32,7 +32,7 @@ class MACDAction(Strategy):
     n_tfShort = 2
     # Volume Filter
     b_vfUse = False
-    n_vfLong = 120
+    n_vfLong = 60*12
     n_vfShort = 15
     # TP/SL
     n_tpThres = 1.2
@@ -56,37 +56,37 @@ class MACDAction(Strategy):
         self.bb = self.I(ut.bbands, close, self.n_bbLen,
                          self.n_bbScale, overlay=True)
         # Trend Filter
-        self.tfLong = self.I(ta.sma, close, self.n_tfLong, plot=False)
-        self.tfShort = self.I(ta.ema, close, self.n_tfShort, plot=False)
+        if self.b_tfUse:
+            self.tfLong = self.I(ta.sma, close, self.n_tfLong, plot=False)
+            self.tfShort = self.I(ta.ema, close, self.n_tfShort, plot=False)
         # Volume Filter
-        self.vfLong = self.I(ta.sma, close, self.n_vfLong, plot=False)
-        self.vfShort = self.I(ta.ema, close, self.n_vfShort, plot=False)
+        if self.b_vfUse:
+            self.vfLong = self.I(ta.sma, volume, self.n_vfLong, plot=False)
+            self.vfShort = self.I(ta.ema, volume, self.n_vfShort, plot=False)
 
     def next(self):
-        close = self.data.Close
+        close = self.data.Close[-1]
         # MACD
         macd = self.macd[0]
-        macdChange = macd[-1] - macd[-2]
         signal = self.macd[2]
-        hist = self.macd[1]
-        cl_macd = macd < 0 and ut.crossover(macd, signal)
-        cs_macd = macd > 0 and ut.crossunder(macd, signal)
+        cl_macd = macd[-1] < 0 and ut.crossover(macd, signal)
+        cs_macd = macd[-1] > 0 and ut.crossunder(macd, signal)
         # ATR
-        c_atr = self.atr > abs(macd) * self.n_atrThres
+        c_atr = self.atr[-1] > abs(macd[-1]) * self.n_atrThres
         # Bollinger Bands
-        bbL = self.bb[0]
-        bbM = self.bb[1]
-        bbH = self.bb[2]
+        bbL = self.bb[0][-1]
+        bbM = self.bb[1][-1]
+        bbH = self.bb[2][-1]
         bbW = bbH - bbL
         cl_bb = close > bbL and close < bbM
         cs_bb = close < bbH and close > bbM
         # Trend Filter
         cl_tf = (not self.b_tfUse) or (
-            close < self.tfLong and close > self.tfShort)
+            close < self.tfLong[-1] and close > self.tfShort[-1])
         cs_tf = (not self.b_tfUse) or (
-            close > self.tfLong and close < self.tfShort)
+            close > self.tfLong[-1] and close < self.tfShort[-1])
         # Volume Filter
-        c_vf = (not self.b_vfUse) or self.vfShort > self.vfLong
+        c_vf = (not self.b_vfUse) or self.vfShort[-1] > self.vfLong[-1] * 0.5
         # TP/SL
         l_close = (close * (1 + commission))
         s_close = (close * (1 - commission))
@@ -95,16 +95,45 @@ class MACDAction(Strategy):
         l_sl = (l_close - bbW * self.n_slThres)
         s_sl = (s_close + bbW * self.n_slThres)
 
-        if cl_macd and c_atr and cl_tf and c_vf and cl_bb:
+        if cl_macd and c_atr and cl_bb and cl_tf and c_vf:
             self.buy(size=self.n_amount, tp=l_tp, sl=l_sl)
-        elif cs_macd and c_atr and cs_tf and c_vf and cs_bb:
+        elif cs_macd and c_atr and cs_bb and cs_tf and c_vf:
             self.sell(size=self.n_amount, tp=s_tp, sl=s_sl)
 
 
 btc = pd.read_csv("./data/mBTC.csv")
 btc['Time'] = pd.to_datetime(btc['Time'], unit='s')
 btc = btc.set_index("Time").sort_index()
+btcPeriod = btc.loc["2017-01-01":"2022-12-31"]
 
+bt = Backtest(btcPeriod, MACDAction,
+              cash=prevamount,
+              commission=commission,
+              )
+
+
+run = bt.run()
+print(run)
+
+bt.plot(filename="plots/plot" + str(plotNum),
+        open_browser=True, plot_drawdown=True, plot_return=True)
+
+# stats = bt.optimize(  # n_macdFast=range(5, 60, 5),
+#     # n_macdSlow=range(20, 360, 10),
+#     # n_macdSignal=range(5, 60, 5),
+#     n_atrLen=range(5, 60, 5),
+#     n_atrThres=[x*0.1 for x in range(8, 25, 1)],
+#     n_bbLen=range(5, 60, 5),
+#     n_bbScale=[x*0.1 for x in range(12, 25, 1)],
+#     maximize='Equity Final [$]',
+#     method="grid",
+#     max_tries=15,
+#     return_heatmap=True
+# )
+# print(stats)
+
+
+"""
 retSum = 0
 posSum = 0
 negSum = 0
@@ -138,45 +167,5 @@ for year in range(2017, 2023):
         prevamount = newamount
 
 print(f"P Total: {posSum + negSum}   P Pos: {posSum} ({round(100*posSum/(posSum+negSum), 2)}%)   P Neg: {negSum} ({round(100*negSum/(posSum+negSum),2)}%)   Avg: {round(retSum/(posSum+negSum), 2)}%")
-# stats = bt.optimize(n_macdFast=range(5, 60, 5),
-#                     n_macdSlow=range(20, 360, 10),
-#                     n_macdSignal=range(5, 60, 5),
-#                     n_atrLen=range(5, 60, 5),
-#                     constraint=lambda p: p.n_macdFast < p.n_macdSlow and p.n_macdSignal < p.n_macdSlow,
-#                     maximize='Equity Final [$]',
-#                     method="grid")
-# print(stats)
 
-# bt.run()
-# bt.plot()
-
-"""
-# Import necessary libraries
-import pandas as pd
-import numpy as np
-
-# Load data for desired cryptocurrency
-data = pd.read_csv('crypto_data.csv')
-
-# Calculate moving average and standard deviation
-ma = data['Close'].rolling(window=20).mean()
-std = data['Close'].rolling(window=20).std()
-
-# Create buy and sell signals based on Bollinger bands
-data['Upper Band'] = ma + (std * 2)
-data['Lower Band'] = ma - (std * 2)
-data['Buy Signal'] = np.where(data['Close'] < data['Lower Band'], 1, 0)
-data['Sell Signal'] = np.where(data['Close'] > data['Upper Band'], 1, 0)
-
-# Implement buy and sell signals
-for i in range(len(data)):
-  if data['Buy Signal'][i] == 1:
-    # Place buy order
-    pass
-  elif data['Sell Signal'][i] == 1:
-    # Place sell order
-    pass
-  else:
-    # Do not place any orders
-    pass
 """

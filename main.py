@@ -1,11 +1,7 @@
 from backtesting import Backtest, Strategy
-from backtesting.lib import crossover
-
-from backtesting.test import SMA, GOOG
 import pandas_ta as ta
 import pandas as pd
 import util as ut
-import calendar as ca
 
 import warnings
 warnings.filterwarnings("ignore")
@@ -23,7 +19,8 @@ class MACDAction(Strategy):
     # ATR
     n_atrLen = 30
     n_atrThres = 1.5
-    n_atrLong = 60
+    n_atrSmaLen = 60*12
+    n_atrSmaThres = 0.18
     # Bollinger Bands
     n_bbLen = 30
     n_bbScale = 2
@@ -54,7 +51,7 @@ class MACDAction(Strategy):
         # ATR
         self.atr = self.I(ta.atr, high, low, close, self.n_atrLen)
         self.atrLong = self.I(ta.sma, ta.atr(
-            high, low, close, self.n_atrLen*2, percent=True), 60*6)
+            high, low, close, self.n_atrLen*2, percent=True), self.n_atrSmaLen)
         # Bollinger Bands
         self.bb = self.I(ut.bbands, close, self.n_bbLen,
                          self.n_bbScale, overlay=True)
@@ -101,11 +98,11 @@ class MACDAction(Strategy):
         # cl_bb = cl_bb and l_close < bbM and s_close > bbL
         # cs_bb = cs_bb and s_close > bbM and l_close < bbH
 
-        amount = 1.0 * max(min(self.atrLong[-1] / 0.2, 0.999), 0.25)
+        amount = min(self.atrLong[-1] / self.n_atrSmaThres, 0.999)
 
-        if cl_macd and c_atr and cl_bb and cl_tf and c_vf:
+        if cl_macd and c_atr and cl_bb and cl_tf and c_vf and amount > 0.25:
             self.buy(size=amount, tp=l_tp, sl=l_sl)
-        elif cs_macd and c_atr and cs_bb and cs_tf and c_vf:
+        elif cs_macd and c_atr and cs_bb and cs_tf and c_vf and amount > 0.25:
             self.sell(size=amount, tp=s_tp, sl=s_sl)
 
 
@@ -124,7 +121,7 @@ run = bt.run()
 print(run)
 
 bt.plot(filename="plots/plot" + str(plotNum),
-        open_browser=True, plot_drawdown=True, plot_return=True)
+        open_browser=True, plot_drawdown=True, plot_return=True, plot_equity=False)
 
 # stats = bt.optimize(  # n_macdFast=range(5, 60, 5),
 #     # n_macdSlow=range(20, 360, 10),

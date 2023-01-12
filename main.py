@@ -117,26 +117,35 @@ bt = Backtest(btcPeriod, MACDAction,
               )
 
 
-run = bt.run()
-print(run)
+# run = bt.run()
+# print(run)
 
-bt.plot(filename="plots/plot" + str(plotNum),
-        open_browser=True, plot_drawdown=True, plot_return=True, plot_equity=False)
+# bt.plot(filename="plots/plot" + str(plotNum),
+#         open_browser=True, plot_drawdown=True, plot_return=True, plot_equity=False)
 
-# stats = bt.optimize(  # n_macdFast=range(5, 60, 5),
-#     # n_macdSlow=range(20, 360, 10),
-#     # n_macdSignal=range(5, 60, 5),
-#     n_atrLen=range(5, 60, 5),
-#     n_atrThres=[x*0.1 for x in range(8, 25, 1)],
-#     n_bbLen=range(5, 60, 5),
-#     n_bbScale=[x*0.1 for x in range(12, 25, 1)],
-#     maximize='Equity Final [$]',
-#     method="grid",
-#     max_tries=15,
-#     return_heatmap=True
-# )
-# print(stats)
+stats, heatmap = bt.optimize(
+    n_macdFast=range(4, 60, 1),
+    n_macdSlow=range(20, 120, 5),
+    n_macdSignal=range(4, 60, 1),
+    n_atrLen=range(4, 60, 1),
+    n_atrThres=[x*0.1 for x in range(8, 25, 1)],
+    n_atrSmaLen=range(60, 60*24, 60),
+    n_atrSmaThres=[x*0.01 for x in range(8, 25, 1)],
+    n_bbLen=range(4, 60, 1),
+    n_bbScale=[x*0.1 for x in range(12, 25, 1)],
+    n_tpThres=[x*0.1 for x in range(6, 25, 1)],
+    n_slThres=[x*0.1 for x in range(6, 25, 1)],
+    n_amount=[x*0.01 for x in range(49, 99, 5)],
+    maximize="Equity Final [$]",
+    method="skopt",
+    # max_tries=150,
+    return_heatmap=True,
+)
 
+print(stats)
+print(stats._strategy)
+
+# MACDAction(n_macdFast=6,n_macdSlow=72,n_macdSignal=4,n_atrLen=55,n_atrThres=0.8050596595548678,n_atrSmaLen=538,n_atrSmaThres=0.18758488822161595,n_bbLen=17,n_bbScale=1.5485865058216945,n_tpThres=1.0696466751789813,n_slThres=1.0130311738933546,n_amount=0.530247908429058) => 61438918.406185
 
 """
 retSum = 0

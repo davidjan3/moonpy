@@ -17,6 +17,12 @@ def bbands(*args):
     return bb
 
 
+def adx(*args):
+    adx = ta.adx(*args)
+    adx = adx.drop(adx.columns[[1, 2]], axis=1)
+    return adx.squeeze()
+
+
 def davg(close, low, high):
     range = high - low
     p = close - low

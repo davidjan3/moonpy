@@ -19,8 +19,8 @@ class MACDAction(Strategy):
     # ATR
     n_atrLen = 30
     n_atrThres = 1.5
-    n_atrSmaLen = 60*12
-    n_atrSmaThres = 0.18
+    n_atrSmaShort = 60*12
+    n_atrSmaLong = 60*24*14
     # ADX
     n_adx = 60*12
     n_adxShort = 60
@@ -38,7 +38,7 @@ class MACDAction(Strategy):
     n_vfShort = 5
     # TP/SL
     n_tpThres = 1.2
-    n_slThres = 0.6
+    n_slThres = 0.4
     # Amount
     n_maxAmount = 0.9999
 
@@ -54,8 +54,10 @@ class MACDAction(Strategy):
                            self.n_macdSlow, self.n_macdSignal)
         # ATR
         self.atr = self.I(ta.atr, high, low, close, self.n_atrLen)
-        self.atrLong = self.I(ta.sma, ta.atr(
-            high, low, close, self.n_atrLen*2, percent=True), self.n_atrSmaLen)
+        self.atrSmaShort = self.I(ta.sma, ta.atr(
+            high, low, close, self.n_atrLen*2, percent=True), self.n_atrSmaShort)
+        self.atrSmaLong = self.I(ta.sma, ta.atr(
+            high, low, close, self.n_atrLen*2, percent=True), self.n_atrSmaLong)
         # ADX
         # self.adxLong = self.I(ta.sma, ut.adx(
         #     high, low, close, self.n_adx), self.n_adxLong)
@@ -105,17 +107,17 @@ class MACDAction(Strategy):
         # cs_bb = cs_bb and s_close > bbM and l_close < bbH
 
         # min(self.atrLong[-1] / self.n_atrSmaThres, self.n_maxAmount)
-        amount = min(self.atrLong[-1] / self.n_atrSmaThres,
-                     self.n_maxAmount)  # self.n_maxAmount
+        amount = ((min(self.atrSmaShort[-1] / (self.atrSmaLong[-1]),
+                  1) - 0.4) / 0.6) * self.n_maxAmount  # self.n_maxAmount
 
         # l_amount = amount * \
         #     0.5 if self.b_tfUse and adx > 10 and self.tfShort[-1] < self.tfLong[-1] else amount
         # s_amount = amount * \
         #     0.5 if self.b_tfUse and adx > 10 and self.tfShort[-1] > self.tfLong[-1] else amount
 
-        if cl_macd and c_atr and cl_bb and c_vf and c_adx and amount > 0.25:
+        if cl_macd and c_atr and cl_bb and c_vf and c_adx and amount > 0:
             self.buy(size=amount, tp=l_tp, sl=l_sl)
-        elif cs_macd and c_atr and cs_bb and c_vf and c_adx and amount > 0.25:
+        elif cs_macd and c_atr and cs_bb and c_vf and c_adx and amount > 0:
             self.sell(size=amount, tp=s_tp, sl=s_sl)
 
 

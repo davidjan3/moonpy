@@ -8,7 +8,7 @@ warnings.filterwarnings("ignore")
 
 commission = 0.0  # 0.005699 / 100  # Binance BTC: 0.005699 / 100
 prevamount = 10000
-plotNum = 2
+plotNum = 1
 
 
 class MACDAction(Strategy):
@@ -21,21 +21,19 @@ class MACDAction(Strategy):
     n_atrThres = 1.5
     n_atrSmaShort = 60*6
     n_atrSmaLong = 60*24*28
+    n_atrSmaSplit = 0.4
     # ADX
     n_adx = 60*12
-    n_adxShort = 60
-    n_adxLong = 60*24*14
+    n_adxEma = 60
+    n_adxLow = 9.99
+    n_adxHigh = 10
     # Bollinger Bands
     n_bbLen = 30
     n_bbScale = 2
     # Trend Filter
-    b_tfUse = True
     n_tfLong = 60*12
     n_tfShort = 60
-    # Volume Filter
-    b_vfUse = False
-    n_vfLong = 60*12
-    n_vfShort = 5
+    n_tfReduct = 0.5
     # TP/SL
     n_tpThres = 1.2
     n_slThres = 0.4
@@ -59,23 +57,19 @@ class MACDAction(Strategy):
         self.atrSmaLong = self.I(ta.sma, ta.atr(
             high, low, close, self.n_atrLen*2, percent=True), self.n_atrSmaLong)
         # ADX
-        self.adxLong = self.I(ta.sma, ut.adx(
-            high, low, close, self.n_adx), self.n_adxLong)
-        self.adxShort = self.I(ta.ema, ut.adx(
-            high, low, close, self.n_adx), self.n_adxShort)
+        self.adx = self.I(ta.ema, ut.adx(
+            high, low, close, self.n_adx), self.n_adxEma)
         # Bollinger Bands
         self.bb = self.I(ut.bbands, close, self.n_bbLen,
                          self.n_bbScale, overlay=True)
         # Trend Filter
-        if self.b_tfUse:
-            self.tfLong = self.I(ta.sma, close, self.n_tfLong, plot=False)
-            self.tfShort = self.I(ta.ema, close, self.n_tfShort, plot=False)
-        # Volume Filter
-        if self.b_vfUse:
-            self.vfLong = self.I(ta.sma, volume, self.n_vfLong, plot=False)
-            self.vfShort = self.I(ta.ema, volume, self.n_vfShort, plot=False)
+        self.tfLong = self.I(ta.sma, close, self.n_tfLong, plot=False)
+        self.tfShort = self.I(ta.ema, close, self.n_tfShort, plot=False)
 
     def next(self):
+        l_amount = self.n_maxAmount
+        s_amount = self.n_maxAmount
+
         close = self.data.Close[-1]
         # MACD
         macd = self.macd[0]
@@ -85,9 +79,14 @@ class MACDAction(Strategy):
         # ATR
         c_atr = self.atr[-1] > abs(macd[-1]) * \
             self.n_atrThres
+        atrSmaMult = ((min(self.atrSmaShort[-1] / (self.atrSmaLong[-1]),
+                           1) - self.n_atrSmaSplit) / (1-self.n_atrSmaSplit))
+        l_amount *= atrSmaMult
+        s_amount *= atrSmaMult
         # ADX
-        adx = self.adxShort[-1]
-        c_adx = True  # self.adxShort[-1] > (self.adxLong[-1] * 0.8)
+        adx = self.adx[-1]
+        adxStrength = min(
+            max((adx-self.n_adxLow)/(self.n_adxHigh - self.n_adxLow), 0), 1)
         # Bollinger Bands
         bbL = self.bb[0][-1]
         bbM = self.bb[1][-1]
@@ -95,8 +94,12 @@ class MACDAction(Strategy):
         bbW = bbH - bbL
         cl_bb = close > bbL and close < bbM
         cs_bb = close < bbH and close > bbM
-        # Volume Filter
-        c_vf = (not self.b_vfUse) or self.vfShort[-1] > self.vfLong[-1]
+        # Trend Filter
+        tfMult = 1.0 - adxStrength * self.n_tfReduct
+        if (self.tfShort[-1] < self.tfLong[-1]):
+            l_amount *= tfMult
+        if (self.tfShort[-1] > self.tfLong[-1]):
+            s_amount *= tfMult
         # TP/SL
         l_close = (close * (1 + commission))
         s_close = (close * (1 - commission))
@@ -104,21 +107,10 @@ class MACDAction(Strategy):
         s_tp = (s_close - bbW * self.n_tpThres)
         l_sl = (l_close - bbW * self.n_slThres)
         s_sl = (s_close + bbW * self.n_slThres)
-        # cl_bb = cl_bb and l_close < bbM and s_close > bbL
-        # cs_bb = cs_bb and s_close > bbM and l_close < bbH
 
-        # min(self.atrLong[-1] / self.n_atrSmaThres, self.n_maxAmount)
-        amount = ((min(self.atrSmaShort[-1] / (self.atrSmaLong[-1]),
-                  1) - 0.4) / 0.6) * self.n_maxAmount  # self.n_maxAmount
-
-        l_amount = amount * \
-            0.5 if self.b_tfUse and adx > 10 and self.tfShort[-1] < self.tfLong[-1] else amount
-        s_amount = amount * \
-            0.5 if self.b_tfUse and adx > 10 and self.tfShort[-1] > self.tfLong[-1] else amount
-
-        if cl_macd and c_atr and cl_bb and c_vf and c_adx and amount > 0:
+        if cl_macd and c_atr and cl_bb and l_amount > 0:
             self.buy(size=l_amount, tp=l_tp, sl=l_sl)
-        elif cs_macd and c_atr and cs_bb and c_vf and c_adx and amount > 0:
+        elif cs_macd and c_atr and cs_bb and s_amount > 0:
             self.sell(size=s_amount, tp=s_tp, sl=s_sl)
 
 

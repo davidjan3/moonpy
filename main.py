@@ -19,8 +19,8 @@ class MACDAction(Strategy):
     # ATR
     n_atrLen = 30
     n_atrThres = 1.5
-    n_atrSmaShort = 60*12
-    n_atrSmaLong = 60*24*14
+    n_atrSmaShort = 60*6
+    n_atrSmaLong = 60*24*28
     # ADX
     n_adx = 60*12
     n_adxShort = 60
@@ -29,7 +29,7 @@ class MACDAction(Strategy):
     n_bbLen = 30
     n_bbScale = 2
     # Trend Filter
-    b_tfUse = False
+    b_tfUse = True
     n_tfLong = 60*12
     n_tfShort = 60
     # Volume Filter
@@ -59,10 +59,10 @@ class MACDAction(Strategy):
         self.atrSmaLong = self.I(ta.sma, ta.atr(
             high, low, close, self.n_atrLen*2, percent=True), self.n_atrSmaLong)
         # ADX
-        # self.adxLong = self.I(ta.sma, ut.adx(
-        #     high, low, close, self.n_adx), self.n_adxLong)
-        # self.adxShort = self.I(ta.ema, ut.adx(
-        #     high, low, close, self.n_adx), self.n_adxShort)
+        self.adxLong = self.I(ta.sma, ut.adx(
+            high, low, close, self.n_adx), self.n_adxLong)
+        self.adxShort = self.I(ta.ema, ut.adx(
+            high, low, close, self.n_adx), self.n_adxShort)
         # Bollinger Bands
         self.bb = self.I(ut.bbands, close, self.n_bbLen,
                          self.n_bbScale, overlay=True)
@@ -86,6 +86,7 @@ class MACDAction(Strategy):
         c_atr = self.atr[-1] > abs(macd[-1]) * \
             self.n_atrThres
         # ADX
+        adx = self.adxShort[-1]
         c_adx = True  # self.adxShort[-1] > (self.adxLong[-1] * 0.8)
         # Bollinger Bands
         bbL = self.bb[0][-1]
@@ -110,15 +111,15 @@ class MACDAction(Strategy):
         amount = ((min(self.atrSmaShort[-1] / (self.atrSmaLong[-1]),
                   1) - 0.4) / 0.6) * self.n_maxAmount  # self.n_maxAmount
 
-        # l_amount = amount * \
-        #     0.5 if self.b_tfUse and adx > 10 and self.tfShort[-1] < self.tfLong[-1] else amount
-        # s_amount = amount * \
-        #     0.5 if self.b_tfUse and adx > 10 and self.tfShort[-1] > self.tfLong[-1] else amount
+        l_amount = amount * \
+            0.5 if self.b_tfUse and adx > 10 and self.tfShort[-1] < self.tfLong[-1] else amount
+        s_amount = amount * \
+            0.5 if self.b_tfUse and adx > 10 and self.tfShort[-1] > self.tfLong[-1] else amount
 
         if cl_macd and c_atr and cl_bb and c_vf and c_adx and amount > 0:
-            self.buy(size=amount, tp=l_tp, sl=l_sl)
+            self.buy(size=l_amount, tp=l_tp, sl=l_sl)
         elif cs_macd and c_atr and cs_bb and c_vf and c_adx and amount > 0:
-            self.sell(size=amount, tp=s_tp, sl=s_sl)
+            self.sell(size=s_amount, tp=s_tp, sl=s_sl)
 
 
 btc = pd.read_csv("./data/mBTC.csv")

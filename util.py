@@ -11,9 +11,15 @@ def crossunder(series0, series1):
     return crossover(series1, series0)
 
 
-def bbands(*args):
+def bbandsLMH(*args):
     bb = ta.bbands(*args)
     bb = bb.drop(bb.columns[[3, 4]], axis=1)
+    return bb
+
+
+def bbandsLH(*args):
+    bb = ta.bbands(*args)
+    bb = bb.drop(bb.columns[[1, 3, 4]], axis=1)
     return bb
 
 

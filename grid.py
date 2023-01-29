@@ -12,23 +12,14 @@ plotNum = 1
 
 
 class MACDAction(Strategy):
-    # MACD
-    n_macdFast = 10
-    n_macdSlow = 30
-    n_macdSignal = 15
-    # ATR
-    n_atrLen = 30
-    n_atrThres = 1.5
-    n_atrSmaShort = 60*6
-    n_atrSmaLong = 60*24*14
     # ADX
     n_adx = 60*6
     n_adxTema = 30
     n_adxLow = 10
     n_adxHigh = 15
     # Bollinger Bands
-    n_bbLen = 30
-    n_bbScale = 2
+    n_bbLen = 60*12
+    n_bbScale = 3.0
     # Trend Filter
     n_tfLong = 60*12
     n_tfShort = 60
@@ -37,7 +28,7 @@ class MACDAction(Strategy):
     n_tpThres = 1.4
     n_slThres = 0.4
     # Amount
-    n_maxAmount = 0.9999
+    n_maxAmount = 0.1
 
     def init(self):
         open = pd.Series(self.data.Open)
@@ -46,69 +37,85 @@ class MACDAction(Strategy):
         low = pd.Series(self.data.Low)
         volume = pd.Series(self.data.Volume)
 
-        # MACD
-        self.macd = self.I(ta.macd, close, self.n_macdFast,
-                           self.n_macdSlow, self.n_macdSignal)
-        # ATR
-        self.atr = self.I(ta.atr, high, low, close, self.n_atrLen)
-        self.atrSmaShort = self.I(ta.sma, ta.atr(
-            high, low, close, self.n_atrLen*2, percent=True), self.n_atrSmaShort)
-        self.atrSmaLong = self.I(ta.sma, ta.atr(
-            high, low, close, self.n_atrLen*2, percent=True), self.n_atrSmaLong)
         # ADX
         self.adx = self.I(ta.tema, ut.adx(
             high, low, close, self.n_adx), self.n_adxTema)
         # Bollinger Bands
-        self.bb = self.I(ut.bbandsLMH, close, self.n_bbLen,
-                         self.n_bbScale, overlay=True)
+        self.bb1 = self.I(ut.bbandsLH, close, self.n_bbLen,
+                          self.n_bbScale * (1/10), overlay=True)
+        self.bb2 = self.I(ut.bbandsLH, close, self.n_bbLen,
+                          self.n_bbScale * (3/10), overlay=True)
+        self.bb3 = self.I(ut.bbandsLH, close, self.n_bbLen,
+                          self.n_bbScale * (7/10), overlay=True)
+        self.bb4 = self.I(ut.bbandsLH, close, self.n_bbLen,
+                          self.n_bbScale * (10/10), overlay=True)
         # Trend Filter
         self.tfLong = self.I(ta.sma, close, self.n_tfLong, plot=False)
         self.tfShort = self.I(ta.ema, close, self.n_tfShort, plot=False)
 
     def next(self):
-        l_amount = self.n_maxAmount
-        s_amount = self.n_maxAmount
+        l_amount = 0
+        s_amount = 0
 
-        close = self.data.Close[-1]
-        # MACD
-        macd = self.macd[0]
-        signal = self.macd[2]
-        cl_macd = macd[-1] < 0 and ut.crossover(macd, signal)
-        cs_macd = macd[-1] > 0 and ut.crossunder(macd, signal)
-        # ATR
-        c_atr = self.atr[-1] > abs(macd[-1]) * self.n_atrThres
-        atrSmaMult = min(self.atrSmaShort[-1] / self.atrSmaLong[-1], 1)
-        l_amount *= atrSmaMult
-        s_amount *= atrSmaMult
+        barIndex = self._broker._i
+        close = self.data.Close
         # ADX
         adx = self.adx[-1]
-        adxStrength = min(
-            max((adx-self.n_adxLow)/(self.n_adxHigh - self.n_adxLow), 0), 1)
+        c_adx = True  # adx < 8
         # Bollinger Bands
-        bbL = self.bb[0][-1]
-        bbM = self.bb[1][-1]
-        bbH = self.bb[2][-1]
-        bbW = bbH - bbL
-        cl_bb = close > bbL and close < bbM
-        cs_bb = close < bbH and close > bbM
-        # Trend Filter
-        tfMult = 1.0 - adxStrength * self.n_tfReduct
-        if (self.tfShort[-1] < self.tfLong[-1]):
-            l_amount *= tfMult
-        if (self.tfShort[-1] > self.tfLong[-1]):
-            s_amount *= tfMult
+        index = 0
+        if ut.crossunder(close, self.bb4[0]):
+            index = 4
+        elif ut.crossunder(close, self.bb3[0]):
+            index = 3
+        elif ut.crossunder(close, self.bb3[0]):
+            index = 2
+        elif ut.crossunder(close, self.bb3[0]):
+            index = 1
+
+        if ut.crossover(close, self.bb4[1]):
+            index = -4
+        elif ut.crossover(close, self.bb3[1]):
+            index = -3
+        elif ut.crossover(close, self.bb2[1]):
+            index = -2
+        elif ut.crossover(close, self.bb1[1]):
+            index = -1
+
+        if index > 0:
+            l_amount = self.n_maxAmount * (index / 4)
+        elif index < 0:
+            s_amount = self.n_maxAmount * (-index / 4)
+
+        # # Trend Filter
+        # tfMult = 1.0 - adxStrength * self.n_tfReduct
+        # if (self.tfShort[-1] < self.tfLong[-1]):
+        #     l_amount *= tfMult
+        # if (self.tfShort[-1] > self.tfLong[-1]):
+        #     s_amount *= tfMult
         # TP/SL
-        l_close = (close * (1 + commission))
-        s_close = (close * (1 - commission))
+        bbW = self.bb4[1][-1] - self.bb4[0][-1]
+        c_bbW = bbW < close[-1]*0.025
+        l_close = (close[-1] * (1 + commission))
+        s_close = (close[-1] * (1 - commission))
         l_tp = (l_close + bbW * self.n_tpThres)
         s_tp = (s_close - bbW * self.n_tpThres)
         l_sl = (l_close - bbW * self.n_slThres)
         s_sl = (s_close + bbW * self.n_slThres)
 
-        if cl_macd and c_atr and cl_bb and l_amount > 0:
+        if l_amount > 0 and c_adx and c_bbW:
+            # self.closeTrades(False)
             self.buy(size=l_amount, tp=l_tp, sl=l_sl)
-        elif cs_macd and c_atr and cs_bb and s_amount > 0:
+        elif s_amount > 0 and c_adx and c_bbW:
+            # self.closeTrades(True)
             self.sell(size=s_amount, tp=s_tp, sl=s_sl)
+
+    def closeTrades(self, direction):
+        for trade in self.trades:
+            if trade.is_long and direction:
+                trade.close()
+            elif trade.is_short and not direction:
+                trade.close()
 
 
 btc = pd.read_csv("./data/mBTC.csv")
@@ -126,7 +133,7 @@ run = bt.run()
 print(run)
 
 bt.plot(filename="plots/plot" + str(plotNum),
-        open_browser=True, plot_drawdown=True, plot_return=True, plot_equity=False)
+        open_browser=True, plot_drawdown=True, plot_return=True, plot_equity=False, resample=True)
 
 # stats = bt.optimize(
 #     n_macdFast=range(4, 60, 1),

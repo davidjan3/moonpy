@@ -106,21 +106,16 @@ class MACDAction(Strategy):
         l_sl = (l_close - bbW * self.n_slThres)
         s_sl = (s_close + bbW * self.n_slThres)
 
-        if cl_macd and c_atr and cl_bb and l_amount > 0:
+        if cl_macd and c_atr and cl_bb and l_amount > 0.25:
             self.buy(size=l_amount, tp=l_tp, sl=l_sl)
-        elif cs_macd and c_atr and cs_bb and s_amount > 0:
+        elif cs_macd and c_atr and cs_bb and s_amount > 0.25:
             self.sell(size=s_amount, tp=s_tp, sl=s_sl)
 
 
-# btc = pd.read_csv("./data/mBTC.csv")
-# btc['Time'] = pd.to_datetime(btc['Time'], unit='s')
-# btc = btc.set_index("Time").sort_index()
-# btcPeriod = btc.loc["2017-01-01":"2022-12-31"]
-
-api = API()
-print("Getting data...")
-btcPeriod = api.getHistdata(60*24*45)
-print("Got data")
+btc = pd.read_csv("./data/mBTC_Jan.csv")
+btc['Time'] = pd.to_datetime(btc['Time'])  # , unit='s')
+btc = btc.set_index("Time").sort_index()
+btcPeriod = btc  # .loc["2017-01-01":"2022-12-31"]
 ut.millify(btcPeriod)
 
 bt = Backtest(btcPeriod, MACDAction,

@@ -1,6 +1,7 @@
-import yfinance as yf
+from api import API
 
-btc = yf.Ticker("BTC")
-history = btc.history("2y", "1h")
-history.plot()
-history.to_csv("./btc_1min.csv")
+api = API()
+print("Getting data...")
+btcPeriod = api.getHistdata(60*24*45)
+btcPeriod.to_csv("data/mBTC_Jan.csv")
+print("Got data")

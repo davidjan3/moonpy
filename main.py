@@ -2,6 +2,7 @@ from backtesting import Backtest, Strategy
 import pandas_ta as ta
 import pandas as pd
 import util as ut
+from api import API
 
 import warnings
 warnings.filterwarnings("ignore")
@@ -111,10 +112,16 @@ class MACDAction(Strategy):
             self.sell(size=s_amount, tp=s_tp, sl=s_sl)
 
 
-btc = pd.read_csv("./data/mBTC.csv")
-btc['Time'] = pd.to_datetime(btc['Time'], unit='s')
-btc = btc.set_index("Time").sort_index()
-btcPeriod = btc.loc["2017-01-01":"2022-12-31"]
+# btc = pd.read_csv("./data/mBTC.csv")
+# btc['Time'] = pd.to_datetime(btc['Time'], unit='s')
+# btc = btc.set_index("Time").sort_index()
+# btcPeriod = btc.loc["2017-01-01":"2022-12-31"]
+
+api = API()
+print("Getting data...")
+btcPeriod = api.getHistdata(60*24*45)
+print("Got data")
+ut.millify(btcPeriod)
 
 bt = Backtest(btcPeriod, MACDAction,
               cash=prevamount,

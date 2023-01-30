@@ -35,6 +35,14 @@ def davg(close, low, high):
     return (p/range) * 2.0 - 1
 
 
+def millify(df):
+    df.Open *= 1/1000.0
+    df.High *= 1/1000.0
+    df.Low *= 1/1000.0
+    df.Close *= 1/1000.0
+    return df
+
+
 class timer:
     t = 0
 

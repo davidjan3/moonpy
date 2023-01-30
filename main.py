@@ -106,9 +106,9 @@ class MACDAction(Strategy):
         l_sl = (l_close - bbW * self.n_slThres)
         s_sl = (s_close + bbW * self.n_slThres)
 
-        if cl_macd and c_atr and cl_bb and l_amount > 0.25:
+        if cl_macd and c_atr and cl_bb and l_amount > 0:
             self.buy(size=l_amount, tp=l_tp, sl=l_sl)
-        elif cs_macd and c_atr and cs_bb and s_amount > 0.25:
+        elif cs_macd and c_atr and cs_bb and s_amount > 0:
             self.sell(size=s_amount, tp=s_tp, sl=s_sl)
 
 

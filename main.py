@@ -23,10 +23,10 @@ class MACDAction(Strategy):
     n_atrSmaShort = 60*6
     n_atrSmaLong = 60*24*14
     # ADX
-    n_adx = 60*6
-    n_adxTema = 30
+    n_adx = 60*3
+    n_adxTema = 15
     n_adxLow = 10
-    n_adxHigh = 15
+    n_adxHigh = 20
     # Bollinger Bands
     n_bbLen = 30
     n_bbScale = 2
@@ -35,8 +35,8 @@ class MACDAction(Strategy):
     n_tfShort = 60
     n_tfReduct = 0.5
     # TP/SL
-    n_tpThres = 1.4
-    n_slThres = 0.4
+    n_tpThres = 1.5
+    n_slThres = 0.5
     # Amount
     n_maxAmount = 0.9999
 
@@ -78,7 +78,8 @@ class MACDAction(Strategy):
         cs_macd = macd[-1] > 0 and ut.crossunder(macd, signal)
         # ATR
         c_atr = self.atr[-1] > abs(macd[-1]) * self.n_atrThres
-        atrSmaMult = min(self.atrSmaShort[-1] / self.atrSmaLong[-1], 1)
+        atrSmaMult = min(
+            self.atrSmaShort[-1] / (self.atrSmaLong[-1]*2.0), 1)
         l_amount *= atrSmaMult
         s_amount *= atrSmaMult
         # ADX

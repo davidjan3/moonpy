@@ -20,8 +20,8 @@ class MACDAction(Strategy):
     # ATR
     n_atrLen = 30
     n_atrThres = 1.5
-    n_atrSmaShort = 60*6
-    n_atrSmaLong = 60*24*10
+    n_atrSmaShort = 60*12
+    n_atrSmaLong = 60*24*7
     # ADX
     n_adx = 60
     n_adxTema = 30
@@ -76,13 +76,15 @@ class MACDAction(Strategy):
         close = self.data.Close[-1]
         # MACD
         macd = self.macd[0]
+        hist = self.macd[1]
         signal = self.macd[2]
         cl_macd = macd[-1] < 0 and ut.crossover(macd, signal)
         cs_macd = macd[-1] > 0 and ut.crossunder(macd, signal)
         # ATR
-        c_atr = self.atr[-1] > abs(macd[-1]) * self.n_atrThres
         atrSmaMult = min(
-            self.atrSmaShort[-1] / (self.atrSmaLong[-1]*2.0), 1)
+            self.atrSmaShort[-1] / (self.atrSmaLong[-1]*1.75), 1)
+        c_atr = self.atr[-1] > abs(macd[-1]) * \
+            self.n_atrThres
         l_amount *= atrSmaMult
         s_amount *= atrSmaMult
         # ADX
@@ -115,6 +117,11 @@ class MACDAction(Strategy):
         elif cs_macd and c_atr and cs_bb and s_amount > 0:
             self.sell(size=s_amount*self.n_maxAmount, tp=s_tp, sl=s_sl)
 
+
+# btc = pd.read_csv("./data/mBTC.csv")
+# btc['Time'] = pd.to_datetime(btc['Time'], unit='s')
+# btc = btc.set_index("Time").sort_index()
+# btcPeriod = btc.loc["2017-01-01":"2022-12-31"]
 
 btc = pd.read_csv("./data/mBTC_Jan.csv")
 btc['Time'] = pd.to_datetime(btc['Time'])  # , unit='s')

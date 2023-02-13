@@ -5,6 +5,7 @@ import util as ut
 from api import API
 
 import warnings
+
 warnings.filterwarnings("ignore")
 
 commission = 0.0  # 0.005699 / 100  # Binance BTC: 0.005699 / 100
@@ -19,9 +20,9 @@ class MACDAction(Strategy):
     n_macdSignal = 15
     # ATR
     n_atrLen = 30
-    n_atrThres = 1.5
-    n_atrSmaShort = 60*12
-    n_atrSmaLong = 60*24*7
+    n_atrThres = 1.3333
+    n_atrSmaShort = 60 * 12
+    n_atrSmaLong = 60 * 24 * 7
     # ADX
     n_adx = 60
     n_adxTema = 30
@@ -31,8 +32,8 @@ class MACDAction(Strategy):
     n_bbLen = 30
     n_bbScale = 2.0
     # Trend Filter
-    n_tfLong = 60*24
-    n_tfShort = 60*2
+    n_tfLong = 60 * 24
+    n_tfShort = 60 * 2
     n_tfReduct = 0.5
     # TP/SL
     n_tpThres = 1.5
@@ -48,20 +49,27 @@ class MACDAction(Strategy):
         volume = pd.Series(self.data.Volume)
 
         # MACD
-        self.macd = self.I(ta.macd, close, self.n_macdFast,
-                           self.n_macdSlow, self.n_macdSignal)
+        self.macd = self.I(
+            ta.macd, close, self.n_macdFast, self.n_macdSlow, self.n_macdSignal
+        )
         # ATR
         self.atr = self.I(ta.atr, high, low, close, self.n_atrLen)
-        self.atrSmaShort = self.I(ta.sma, ta.atr(
-            high, low, close, self.n_atrLen*2, percent=True), self.n_atrSmaShort)
-        self.atrSmaLong = self.I(ta.sma, ta.atr(
-            high, low, close, self.n_atrLen*2, percent=True), self.n_atrSmaLong)
+        self.atrSmaShort = self.I(
+            ta.sma,
+            ta.atr(high, low, close, self.n_atrLen * 2, percent=True),
+            self.n_atrSmaShort,
+        )
+        self.atrSmaLong = self.I(
+            ta.sma,
+            ta.atr(high, low, close, self.n_atrLen * 2, percent=True),
+            self.n_atrSmaLong,
+        )
         # ADX
-        self.adx = self.I(ta.tema, ut.adx(
-            high, low, close, self.n_adx), self.n_adxTema)
+        self.adx = self.I(ta.tema, ut.adx(high, low, close, self.n_adx), self.n_adxTema)
         # Bollinger Bands
-        self.bb = self.I(ut.bbandsLMH, close, self.n_bbLen,
-                         self.n_bbScale, overlay=True)
+        self.bb = self.I(
+            ut.bbandsLMH, close, self.n_bbLen, self.n_bbScale, overlay=True
+        )
         # Trend Filter
         self.tfLong = self.I(ta.sma, close, self.n_tfLong, plot=False)
         self.tfShort = self.I(ta.ema, close, self.n_tfShort, plot=False)
@@ -81,16 +89,15 @@ class MACDAction(Strategy):
         cl_macd = macd[-1] < 0 and ut.crossover(macd, signal)
         cs_macd = macd[-1] > 0 and ut.crossunder(macd, signal)
         # ATR
-        atrSmaMult = min(
-            self.atrSmaShort[-1] / (self.atrSmaLong[-1]*1.75), 1)
-        c_atr = self.atr[-1] > abs(macd[-1]) * \
-            self.n_atrThres
+        atrSmaMult = min(self.atrSmaShort[-1] / (self.atrSmaLong[-1] * 1.75), 1)
+        c_atr = self.atr[-1] > abs(macd[-1]) * self.n_atrThres
         l_amount *= atrSmaMult
         s_amount *= atrSmaMult
         # ADX
         adx = self.adx[-1]
         adxStrength = min(
-            max((adx-self.n_adxLow)/(self.n_adxHigh - self.n_adxLow), 0), 1)
+            max((adx - self.n_adxLow) / (self.n_adxHigh - self.n_adxLow), 0), 1
+        )
         # Bollinger Bands
         bbL = self.bb[0][-1]
         bbM = self.bb[1][-1]
@@ -100,46 +107,55 @@ class MACDAction(Strategy):
         cs_bb = close > bbM
         # Trend Filter
         tfMult = 1.0 - adxStrength * self.n_tfReduct
-        if (self.tfShort[-1] < self.tfLong[-1]):
+        if self.tfShort[-1] < self.tfLong[-1]:
             l_amount *= tfMult
-        if (self.tfShort[-1] > self.tfLong[-1]):
+            # s_amount *= 1.0 / tfMult
+        if self.tfShort[-1] > self.tfLong[-1]:
+            # l_amount *= 1.0 / tfMult
             s_amount *= tfMult
         # TP/SL
-        l_close = (close * (1 + commission))
-        s_close = (close * (1 - commission))
-        l_tp = (l_close + bbW * self.n_tpThres)
-        s_tp = (s_close - bbW * self.n_tpThres)
-        l_sl = (l_close - bbW * self.n_slThres)
-        s_sl = (s_close + bbW * self.n_slThres)
+        l_close = close * (1 + commission)
+        s_close = close * (1 - commission)
+        l_tp = l_close + bbW * self.n_tpThres
+        s_tp = s_close - bbW * self.n_tpThres
+        l_sl = l_close - bbW * self.n_slThres
+        s_sl = s_close + bbW * self.n_slThres
 
         if cl_macd and c_atr and cl_bb and l_amount > 0:
-            self.buy(size=l_amount*self.n_maxAmount, tp=l_tp, sl=l_sl)
+            self.buy(size=min(l_amount, 1.0) * self.n_maxAmount, tp=l_tp, sl=l_sl)
         elif cs_macd and c_atr and cs_bb and s_amount > 0:
-            self.sell(size=s_amount*self.n_maxAmount, tp=s_tp, sl=s_sl)
+            self.sell(size=min(s_amount, 1.0) * self.n_maxAmount, tp=s_tp, sl=s_sl)
 
 
-# btc = pd.read_csv("./data/mBTC.csv")
-# btc['Time'] = pd.to_datetime(btc['Time'], unit='s')
-# btc = btc.set_index("Time").sort_index()
-# btcPeriod = btc.loc["2017-01-01":"2022-12-31"]
-
-btc = pd.read_csv("./data/mBTC_Jan.csv")
-btc['Time'] = pd.to_datetime(btc['Time'])  # , unit='s')
+btc = pd.read_csv("./data/mBTC.csv")
+btc["Time"] = pd.to_datetime(btc["Time"], unit="s")
 btc = btc.set_index("Time").sort_index()
-btcPeriod = btc  # .loc["2017-01-01":"2022-12-31"]
-ut.millify(btcPeriod)
+btcPeriod = btc.loc["2017-01-01":"2022-12-31"]
 
-bt = Backtest(btcPeriod, MACDAction,
-              cash=prevamount,
-              commission=commission,
-              )
+# btc = pd.read_csv("./data/mBTC_Jan.csv")
+# btc["Time"] = pd.to_datetime(btc["Time"])  # , unit='s')
+# btc = btc.set_index("Time").sort_index()
+# btcPeriod = btc  # .loc["2017-01-01":"2022-12-31"]
+# ut.millify(btcPeriod)
+
+bt = Backtest(
+    btcPeriod,
+    MACDAction,
+    cash=prevamount,
+    commission=commission,
+)
 
 
 run = bt.run()
 print(run)
 
-bt.plot(filename="plots/plot" + str(plotNum),
-        open_browser=True, plot_drawdown=True, plot_return=True, plot_equity=False)
+bt.plot(
+    filename="plots/plot" + str(plotNum),
+    open_browser=True,
+    plot_drawdown=True,
+    plot_return=True,
+    plot_equity=False,
+)
 
 # stats = bt.optimize(
 #     n_macdFast=range(4, 60, 1),

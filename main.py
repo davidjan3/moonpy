@@ -34,7 +34,7 @@ class MACDAction(Strategy):
     # Trend Filter
     n_tfLong = 60 * 24
     n_tfShort = 60 * 2
-    n_tfReduct = 0.5
+    n_tfReduct = 0.3333
     # TP/SL
     n_tpThres = 1.5
     n_slThres = 0.5
@@ -109,9 +109,9 @@ class MACDAction(Strategy):
         tfMult = 1.0 - adxStrength * self.n_tfReduct
         if self.tfShort[-1] < self.tfLong[-1]:
             l_amount *= tfMult
-            # s_amount *= 1.0 / tfMult
+            s_amount *= 1.0 / tfMult
         if self.tfShort[-1] > self.tfLong[-1]:
-            # l_amount *= 1.0 / tfMult
+            l_amount *= 1.0 / tfMult
             s_amount *= tfMult
         # TP/SL
         l_close = close * (1 + commission)

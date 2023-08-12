@@ -32,15 +32,24 @@ def adx(*args):
 def davg(close, low, high):
     range = high - low
     p = close - low
-    return (p/range) * 2.0 - 1
+    return (p / range) * 2.0 - 1
 
 
 def millify(df):
-    df.Open *= 1/1000.0
-    df.High *= 1/1000.0
-    df.Low *= 1/1000.0
-    df.Close *= 1/1000.0
+    df.Open *= 1 / 1000.0
+    df.High *= 1 / 1000.0
+    df.Low *= 1 / 1000.0
+    df.Close *= 1 / 1000.0
     return df
+
+
+def buydec(df):
+    now = df.values[int(len(df) / 2)]
+    if now == max(df.values):
+        return -1.0
+    if now == min(df.values):
+        return 1.0
+    return 0
 
 
 class timer:

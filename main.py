@@ -3,6 +3,7 @@ import pandas_ta as ta
 import pandas as pd
 import util as ut
 from api import API
+import tensorflow as tf
 
 import warnings
 
@@ -130,7 +131,7 @@ class MACDAction(Strategy):
 btc = pd.read_csv("./data/mBTC.csv")
 btc["Time"] = pd.to_datetime(btc["Time"], unit="s")
 btc = btc.set_index("Time").sort_index()
-btcPeriod = btc.loc["2017-01-01":"2022-12-31"]
+btcPeriod = btc.loc["2022-01-01":"2022-12-31"]
 
 # btc = pd.read_csv("./data/mBTC_Jan.csv")
 # btc["Time"] = pd.to_datetime(btc["Time"])  # , unit='s')

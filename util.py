@@ -43,15 +43,6 @@ def millify(df):
     return df
 
 
-def buydec(df):
-    now = df.values[int(len(df) / 2)]
-    if now == max(df.values):
-        return -1.0
-    if now == min(df.values):
-        return 1.0
-    return 0
-
-
 class timer:
     t = 0
 

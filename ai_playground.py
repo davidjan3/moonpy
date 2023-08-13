@@ -6,12 +6,11 @@ import warnings
 
 warnings.filterwarnings("ignore")
 
-btc = pd.read_csv("./data/mBTC2.csv")
+btc = pd.read_csv("./data/mBTC.csv")
 btc["Time"] = pd.to_datetime(btc["Time"], unit="s")
 btc = btc.set_index("Time")
 btcPeriod = btc.loc["2022-01-01":"2022-01-31"]
 btcPeriod["Buydec"] = btcPeriod["Close"].rolling(29).apply(ut.buydec).shift(-14)
-print(btcPeriod.to_string())
 
 # btc = pd.read_csv("./data/mBTC_Jan.csv")
 # btc["Time"] = pd.to_datetime(btc["Time"])  # , unit='s')
@@ -110,14 +109,14 @@ class MACDAction(Strategy):
         l_sl = l_close - bbW * self.n_slThres
         s_sl = s_close + bbW * self.n_slThres
 
-        if amount > 0.5:  # and bbW > 0:
+        if amount == -1.0:  # and bbW > 0:
             if self.position.is_short:
                 self.position.close()
-            self.buy(size=amount * self.n_maxAmount)  # , tp=l_tp, sl=l_sl)
-        elif amount < -0.5:  # and bbW > 0:
+            self.buy(size=-amount * self.n_maxAmount)  # , tp=l_tp, sl=l_sl)
+        elif amount == 1.0:  # and bbW > 0:
             if self.position.is_long:
                 self.position.close()
-            self.sell(size=-amount * self.n_maxAmount)  # , tp=s_tp, sl=s_sl)
+            self.sell(size=amount * self.n_maxAmount)  # , tp=s_tp, sl=s_sl)
 
 
 bt = Backtest(

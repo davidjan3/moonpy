@@ -1,5 +1,6 @@
 import random
 import tensorflow as tf
+import pandas as pd
 
 model = tf.keras.models.Sequential(
     [
@@ -69,3 +70,11 @@ y_test = [0, 1, -1, 0]
 
 model.evaluate(x_test, y_test, verbose=2)
 print(model.predict(x_test))
+
+# convert x_test to dataframe
+x_test_df = pd.DataFrame(x_test)
+
+# add column containing y_test
+x_test_df["y_test"] = y_test
+
+print(x_test_df)

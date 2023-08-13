@@ -1,8 +1,9 @@
 import pandas_ta as ta
 import pandas as pd
-import util as ut
+import ai_util as ut
 
 btc = pd.read_csv("./data/mBTC.csv")
+btc = btc.set_index("Time")
 open = btc["Open"]
 close = btc["Close"]
 high = btc["High"]

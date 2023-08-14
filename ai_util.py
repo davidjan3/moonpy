@@ -16,7 +16,7 @@ def makeSets(data):
 
 
 def toDataset(x, y):
-    return tf.data.Dataset.from_tensor_slices((x, y)).batch(60)
+    return tf.data.Dataset.from_tensor_slices((x, y)).batch(2048)
 
 
 def buydec(df):

@@ -3,17 +3,12 @@ import pandas_ta as ta
 import util as ut
 from backtesting import Backtest, Strategy
 
-btc = pd.read_csv("models/model0.csv")
-btc["Time"] = pd.to_datetime(btc["Time"])
-btc = btc.set_index("Time")
-print(btc)
 
 prevamount = 10000
-plotNum = 3
 commission = 0.005699 / 100  # Binance BTC: 0.005699 / 100
 
 
-class MACDAction(Strategy):
+class Plot(Strategy):
     # Amount
     n_maxAmount = 0.5
     # Bollinger Bands
@@ -59,32 +54,32 @@ class MACDAction(Strategy):
         l_sl = l_close - bbW * self.n_slThres
         s_sl = s_close + bbW * self.n_slThres
 
-        if amount < -0.06:  # and bbW > 0:
+        if amount < -0.05:  # and bbW > 0:
             if self.position.is_short:
                 self.position.close()
             self.buy(size=-amount * self.n_maxAmount, tp=l_tp, sl=l_sl)
-        elif amount > 0.06:  # and bbW > 0:
+        elif amount > 0.05:  # and bbW > 0:
             if self.position.is_long:
                 self.position.close()
             self.sell(size=amount * self.n_maxAmount, tp=s_tp, sl=s_sl)
 
 
-bt = Backtest(
-    btc,
-    MACDAction,
-    cash=prevamount,
-    commission=commission,
-)
+def plot(df, plotNum):
+    bt = Backtest(
+        df,
+        Plot,
+        cash=prevamount,
+        commission=commission,
+    )
 
+    run = bt.run()
+    print(run)
 
-run = bt.run()
-print(run)
-
-bt.plot(
-    filename="plots/plot" + str(plotNum),
-    open_browser=True,
-    plot_drawdown=True,
-    plot_return=True,
-    plot_equity=False,
-    resample=False,
-)
+    bt.plot(
+        filename="plots/plot" + str(plotNum),
+        open_browser=True,
+        plot_drawdown=True,
+        plot_return=True,
+        plot_equity=False,
+        resample=True,
+    )

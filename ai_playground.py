@@ -2,15 +2,16 @@ from backtesting import Backtest, Strategy
 import pandas_ta as ta
 import pandas as pd
 import util as ut
+import ai_util as ai
 import warnings
 
 warnings.filterwarnings("ignore")
 
-btc = pd.read_csv("./data/mBTC.csv")
-btc["Time"] = pd.to_datetime(btc["Time"], unit="s")
-btc = btc.set_index("Time")
-btcPeriod = btc.loc["2022-01-01":"2022-01-31"]
-btcPeriod["Buydec"] = btcPeriod["Close"].rolling(29).apply(ut.buydec).shift(-14)
+btc = pd.read_csv("./data/mBTC_idx_2022.csv")
+btc["Time"] = pd.to_datetime(btc["Time"])
+btcPeriod = btc.set_index("Time")
+# btcPeriod = btc.loc["2022-01-01":"2022-01-31"]
+btcPeriod["Buydec"] = ai.buydec(btcPeriod)
 
 # btc = pd.read_csv("./data/mBTC_Jan.csv")
 # btc["Time"] = pd.to_datetime(btc["Time"])  # , unit='s')
@@ -49,7 +50,7 @@ class MACDAction(Strategy):
     n_tpThres = 1.5
     n_slThres = 0.5
     # Amount
-    n_maxAmount = 0.9999
+    n_maxAmount = 0.1
 
     def init(self):
         open = pd.Series(self.data.Open)
@@ -94,7 +95,7 @@ class MACDAction(Strategy):
         close = self.data.Close[-1]
         buydec = self.data.Buydec[-1]
 
-        amount = buydec
+        amount = buydec / 1.5
 
         # Bollinger Bands
         bbL = self.bb[0][-1]
@@ -109,14 +110,11 @@ class MACDAction(Strategy):
         l_sl = l_close - bbW * self.n_slThres
         s_sl = s_close + bbW * self.n_slThres
 
-        if amount == -1.0:  # and bbW > 0:
-            if self.position.is_short:
-                self.position.close()
-            self.buy(size=-amount * self.n_maxAmount)  # , tp=l_tp, sl=l_sl)
-        elif amount == 1.0:  # and bbW > 0:
-            if self.position.is_long:
-                self.position.close()
-            self.sell(size=amount * self.n_maxAmount)  # , tp=s_tp, sl=s_sl)
+        amount = min(max(amount, -1.0), 1.0)
+        if amount > 0.8:  # and bbW > 0:
+            self.buy(size=amount * self.n_maxAmount, tp=l_tp, sl=l_sl)
+        elif amount < -0.8:  # and bbW > 0:
+            self.sell(size=-amount * self.n_maxAmount, tp=s_tp, sl=s_sl)
 
 
 bt = Backtest(

@@ -1,3 +1,4 @@
+import numpy as np
 import tensorflow as tf
 import pandas as pd
 
@@ -20,9 +21,17 @@ def toDataset(x, y):
 
 
 def buydec(df):
-    maxVal = max(df.values)
-    minVal = min(df.values)
-    curVal = df.values[int(len(df) / 2)]
-    curRel = (curVal - minVal) / (maxVal - minVal)
+    vals = []
+    lookahead = 30
+    for i in range(len(df)):
+        curClose = df["Close"].iloc[i]
+        curBBW = df["BBUpper"].iloc[i] - df["BBLower"].iloc[i]
+        closeLookahead = df["Close"].iloc[i : i + lookahead]
+        maxClose = max(closeLookahead)
+        minClose = min(closeLookahead)
+        potentialUp = (maxClose - curClose) / curBBW
+        potentialDown = (curClose - minClose) / curBBW
+        potentialSum = potentialUp - potentialDown
+        vals.append(potentialSum)
 
-    return curRel * 2 - 1
+    return np.array(vals)

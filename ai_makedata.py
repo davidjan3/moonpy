@@ -1,6 +1,7 @@
 import pandas_ta as ta
 import pandas as pd
-import ai_util as ut
+import ai_util as ai
+import util as ut
 
 btc = pd.read_csv("./data/mBTC.csv")
 btc = btc.set_index("Time")
@@ -28,6 +29,6 @@ btc["BBUpper"] = bb.iloc[:, 2]
 btc["TFLong"] = ta.sma(close, 60 * 24)
 btc["TFShort"] = ta.sma(close, 60)
 
-btc["Buydec"] = close.rolling(29).apply(ut.buydec).shift(-14)
+btc["Buydec"] = ai.buydec(btc)
 
 btc.to_csv("./data/mBTC_idx.csv")

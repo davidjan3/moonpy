@@ -3,21 +3,27 @@ import tensorflow as tf
 import pandas as pd
 
 
-def makeSets(data):
+def makeSets(data, lookback_len):
     print("Normalizing...")
     dataX = data.iloc[:, 0:-1]
-    dataX = ((dataX - dataX.min()) / (dataX.max() - dataX.min())) * 2 - 1
-    dataXArr = dataX.values.tolist()
+    dataX = normalizeMinMax(dataX)
+    dataY = data.iloc[:, -1]
+    dataY = normalizeMinMaxSplitZero(dataY)
 
     print("Preparing i/o data...")
-    x_train = [[dataXArr[i - 1] + dataXArr[i]] for i in range(1, len(dataXArr))]
-    y_train = data.iloc[:, -1].values.tolist()[1:]
+    dataXArr = dataX.values.tolist()
+    x_train = [
+        [dataXArr[i - j] for j in range(lookback_len)]
+        for i in range(lookback_len - 1, len(dataXArr))
+    ]
+    dataYArr = dataY.values.tolist()
+    y_train = dataYArr[lookback_len - 1 :]
 
     return x_train, y_train
 
 
 def toDataset(x, y):
-    return tf.data.Dataset.from_tensor_slices((x, y)).batch(2048)
+    return tf.data.Dataset.from_tensor_slices((x, y))
 
 
 def buydec(df):
@@ -35,3 +41,16 @@ def buydec(df):
         vals.append(potentialSum)
 
     return np.array(vals)
+
+
+def normalizeMinMax(data):
+    return ((data - data.min()) / (data.max() - data.min())) * 2 - 1
+
+
+def normalizeMinMaxSplitZero(data):
+    max = data.max()
+    min = data.min()
+    newData = data.copy()
+    newData[data > 0] = ((data[data > 0] - 0) / (max - 0)) * 2 - 1
+    newData[data < 0] = ((data[data < 0] - min) / (0 - min)) * 2 - 1
+    return newData

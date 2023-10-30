@@ -25,15 +25,13 @@ model.compile(
 )
 
 print("Loading CSV...")
-btc = pd.read_csv("./data/mBTC_idx.csv")
+btc = pd.read_csv("./data/pData_idx.csv")
 btc["Time"] = pd.to_datetime(btc["Time"], unit="s")
 btc = btc.set_index("Time")
-btcTrain = btc.loc["2019-01-01":"2021-12-31"]
+btcTrain = btc.loc["2019-01-01":"2019-05-31"]
+btcTrain = btcTrain.dropna()
 x_train, y_train = ut.makeSets(btcTrain, INPUT_LEN)
 
-print(len(x_train), len(y_train))
-
-# Create train dataset and call model.fit with it:
 print("Creating datasets...")
 train_dataset = ut.toDataset(x_train, y_train).batch(64).shuffle(512)
 
@@ -47,4 +45,4 @@ model.fit(
         )
     ],
 )
-model.save("models/model7.keras")
+model.save("models/model9.keras")

@@ -54,11 +54,11 @@ class Plot(Strategy):
         l_sl = l_close - bbW * self.n_slThres
         s_sl = s_close + bbW * self.n_slThres
 
-        if amount < -0.05:  # and bbW > 0:
+        if amount < -0.8 and bbW > 0:
             # if self.position.is_short:
             #     self.position.close()
             self.buy(size=-amount * self.n_maxAmount, tp=l_tp, sl=l_sl)
-        elif amount > 0.05:  # and bbW > 0:
+        elif amount > 0.8 and bbW > 0:
             # if self.position.is_long:
             #     self.position.close()
             self.sell(size=amount * self.n_maxAmount, tp=s_tp, sl=s_sl)
